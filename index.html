@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSF v4.0 — Форум с улучшенными рамками</title>
+    <style>
+        :root {
+            --bg-body: #1e1e2e; --bg-container: #181825; --bg-element: #11111b; --bg-hover: #313244;
+            --text-primary: #e0e0e0; --text-secondary: #b0b0b0; --text-muted: #808080; --accent: #6c8cff;
+            --accent-hover: #5a7ae8; --border: #2a2a3a; --radius: 8px; --radius-sm: 4px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.4); --transition: 0.2s ease;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI', 'Inter', system-ui, sans-serif; background:var(--bg-body); color:var(--text-primary); line-height:1.5; min-height:100vh; display:flex; flex-direction:column; }
+        .header { background:var(--bg-container); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:10; }
+        .logo { font-size:22px; font-weight:700; color:var(--accent); white-space:nowrap; cursor:pointer; }
+        .logo span { color:var(--text-primary); }
+        .search-form { flex:1; min-width:150px; max-width:350px; display:flex; align-items:center; background:var(--bg-element); border:1px solid var(--border); border-radius:20px; padding:4px 12px; transition:var(--transition); }
+        .search-form:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px rgba(108,140,255,0.2); }
+        .search-form input { flex:1; background:transparent; border:none; outline:none; color:var(--text-primary); font-size:14px; padding:4px 8px; }
+        .search-form input::placeholder { color:var(--text-muted); }
+        .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:var(--radius-sm); border:none; font-weight:600; font-size:13px; cursor:pointer; transition:var(--transition); white-space:nowrap; }
+        .btn-primary { background:var(--accent); color:#fff; }
+        .btn-primary:hover { background:var(--accent-hover); }
+        .btn-outline { background:transparent; color:var(--text-secondary); border:1px solid var(--border); }
+        .btn-outline:hover { background:var(--bg-hover); color:var(--text-primary); }
+        .user-info { display:flex; align-items:center; gap:10px; }
+        .user-avatar { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:var(--accent); color:#fff; font-weight:bold; overflow:hidden; flex-shrink:0; border:2px solid transparent; position: relative; }
+        .user-avatar img { width:100%; height:100%; object-fit:cover; }
+        .message-avatar, .chat-avatar { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:var(--accent); color:#fff; font-weight:bold; overflow:hidden; flex-shrink:0; border:2px solid transparent; position: relative; }
+        .message-avatar img, .chat-avatar img { width:100%; height:100%; object-fit:cover; }
+        .message .message-avatar, .chat-message .chat-avatar { width: 48px; height: 48px; font-size: 24px; flex-shrink: 0; }
+        .forum-table .user-avatar { width: 32px; height: 32px; font-size: 16px; }
+        .breadcrumbs { padding:12px 24px; font-size:14px; color:var(--text-secondary); background:var(--bg-container); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .breadcrumbs a { color:var(--accent); text-decoration:none; cursor:pointer; }
+        .breadcrumbs a:hover { text-decoration:underline; }
+        .breadcrumbs span.sep { color:var(--text-muted); margin:0 2px; }
+        .container { flex:1; width:100%; max-width:900px; margin:0 auto; padding:20px 24px; }
+        .forum-table { width:100%; border-collapse:collapse; background:var(--bg-container); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); margin-bottom:20px; }
+        .forum-table th, .forum-table td { padding:12px 16px; text-align:left; border-bottom:1px solid var(--border); font-size:14px; vertical-align:middle; }
+        .forum-table th { background:var(--bg-element); color:var(--text-muted); text-transform:uppercase; font-size:12px; letter-spacing:0.5px; font-weight:600; }
+        .forum-table tr:last-child td { border-bottom:none; }
+        .forum-table tbody tr { cursor:pointer; transition:var(--transition); }
+        .forum-table tbody tr:hover { background:var(--bg-hover); }
+        .forum-title { font-weight:600; color:var(--text-primary); font-size:15px; }
+        .forum-meta { font-size:13px; color:var(--text-secondary); white-space:nowrap; }
+        .forum-meta .author { color:var(--accent); }
+        .pagination { display:flex; justify-content:center; gap:6px; margin:20px 0; flex-wrap:wrap; }
+        .page-btn { padding:6px 12px; border-radius:var(--radius-sm); background:var(--bg-element); border:1px solid var(--border); cursor:pointer; color:var(--text-secondary); font-size:14px; transition:var(--transition); }
+        .page-btn:hover:not(.active) { background:var(--bg-hover); color:var(--text-primary); }
+        .page-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); cursor:default; }
+        .page-btn.disabled { opacity:0.5; cursor:not-allowed; }
+        .message { background:var(--bg-container); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; display:flex; gap:16px; box-shadow:var(--shadow); }
+        .message-content { flex:1; min-width:0; }
+        .message-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+        .message-author { font-weight:600; color:var(--accent); font-size:15px; cursor:pointer; }
+        .message-date { font-size:12px; color:var(--text-muted); margin-left:auto; }
+        .message-text { font-size:14px; line-height:1.6; word-break:break-word; white-space:pre-wrap; }
+        .role-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; color:#fff; margin-left:6px; white-space:nowrap; }
+        .role-badge.head_admin { background:#800000; }
+        .role-badge.admin { background:#dc3545; }
+        .role-badge.premium { background:linear-gradient(45deg, #4b0082, #1a1a1a, #4b0082); background-size:300% 300%; animation:premiumShift 2s ease infinite; }
+        @keyframes premiumShift { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+        .role-badge.beta { background:#000; }
+        .role-badge.user { background:#28a745; }
+        .premium-nickname { color: var(--neon-color, #ff00ff); text-shadow:0 0 5px #fff, 0 0 10px var(--neon-color, #ff00ff), 0 0 15px var(--neon-color, #ff00ff); animation:neonGlow 1.5s ease-in-out infinite alternate; }
+        @keyframes neonGlow { from { text-shadow:0 0 5px #fff, 0 0 10px var(--neon-color, #ff00ff), 0 0 15px var(--neon-color, #ff00ff); } to { text-shadow:0 0 10px #fff, 0 0 20px var(--neon-color, #ff00ff), 0 0 30px var(--neon-color, #ff00ff); } }
+        .delete-admin-btn { background:#dc3545; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; transition:var(--transition); }
+        .delete-admin-btn:hover { background:#b02a37; }
+        .delete-own-btn { background:none; border:none; color:#dc3545; cursor:pointer; font-size:13px; font-weight:600; padding:2px 6px; transition:var(--transition); }
+        .delete-own-btn:hover { background:rgba(220,53,69,0.2); border-radius:4px; }
+        .reply-form { background:var(--bg-container); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-top:20px; box-shadow:var(--shadow); }
+        .reply-form h3 { margin-bottom:12px; font-size:18px; }
+        .reply-form textarea { width:100%; background:var(--bg-element); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; color:var(--text-primary); font-size:14px; font-family:inherit; resize:vertical; min-height:100px; outline:none; }
+        .reply-form textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(108,140,255,0.2); }
+        .reply-actions { margin-top:12px; display:flex; justify-content:flex-end; }
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:100; }
+        .modal { background:var(--bg-container); border-radius:var(--radius); padding:24px; width:90%; max-width:450px; border:1px solid var(--border); box-shadow:0 8px 32px rgba(0,0,0,0.5); animation:modalIn 0.2s ease; }
+        @keyframes modalIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .modal h3 { margin-bottom:16px; font-size:20px; }
+        .form-group { margin-bottom:16px; }
+        .form-group label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+        .form-group input, .form-group select, .form-group textarea { width:100%; background:var(--bg-element); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; color:var(--text-primary); font-size:14px; font-family:inherit; outline:none; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(108,140,255,0.2); }
+        .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:8px; }
+        .file-upload { margin-top:10px; display:flex; align-items:center; gap:10px; }
+        .file-upload input[type="file"] { display:none; }
+        .file-upload label { padding:6px 12px; background:var(--bg-element); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; color:var(--text-secondary); }
+        .file-upload label:hover { background:var(--bg-hover); }
+        .file-upload img.preview { width:48px; height:48px; border-radius:50%; object-fit:cover; }
+        .clickable-user { cursor:pointer; display:flex; align-items:center; gap:8px; }
+        .role-code-btn { background:none; border:1px dashed var(--border); color:var(--text-muted); cursor:pointer; padding:6px 12px; border-radius:var(--radius-sm); font-size:13px; transition:var(--transition); }
+        .role-code-btn:hover { background:var(--bg-hover); color:var(--text-primary); }
+        .role-code-input-area { margin-top:10px; display:flex; gap:8px; align-items:center; }
+        .nav-link { cursor:pointer; color:var(--text-secondary); padding:6px 12px; border-radius:var(--radius-sm); transition:var(--transition); }
+        .nav-link:hover, .nav-link.active { background:var(--bg-hover); color:var(--text-primary); }
+        .stats-bar { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px; background:var(--bg-container); padding:16px; border-radius:var(--radius); border:1px solid var(--border); }
+        .stat-item { display:flex; align-items:center; gap:8px; }
+        .stat-icon { font-size:24px; }
+        .stat-value { font-size:18px; font-weight:700; }
+        .stat-label { font-size:13px; color:var(--text-muted); }
+        .support-page { background:var(--bg-container); padding:24px; border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow); }
+        .support-page h2 { margin-bottom:16px; }
+        .support-page p { margin-bottom:12px; }
+        .support-message { background:var(--bg-element); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:8px; }
+        .support-message .author { font-weight:600; color:var(--accent); cursor:pointer; }
+        .support-message .date { font-size:12px; color:var(--text-muted); margin-left:10px; }
+        .support-message .text { margin-top:4px; }
+        .support-message .delete-btn { background:none; border:none; color:#dc3545; cursor:pointer; margin-left:auto; font-size:13px; }
+        .support-form { margin-bottom:24px; }
+        .media-attachment { margin-top:10px; }
+        .media-attachment img, .media-attachment video, .media-attachment audio { max-width:100%; max-height:300px; border-radius:4px; display:block; }
+        .tabs { display:flex; gap:4px; margin-bottom:16px; flex-wrap:wrap; }
+        .tab { padding:6px 12px; cursor:pointer; border-radius:var(--radius-sm); color:var(--text-secondary); border:1px solid var(--border); background:transparent; }
+        .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+        .tab:hover:not(.active) { background:var(--bg-hover); color:var(--text-primary); }
+        .request-item { background:var(--bg-element); border:1px solid var(--border); padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .request-item .actions { margin-left:auto; }
+        .request-item .actions button { margin-left:6px; }
+        .conversation-item { background:var(--bg-element); border:1px solid var(--border); padding:10px 14px; border-radius:var(--radius-sm); margin-bottom:8px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+        .conversation-item:hover { background:var(--bg-hover); }
+        .conversation-item .last-message { font-size:12px; color:var(--text-muted); margin-left:auto; }
+        .chat-container { background:var(--bg-container); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); }
+        .chat-header { font-size:18px; margin-bottom:16px; font-weight:600; }
+        .chat-messages { max-height:400px; overflow-y:auto; margin-bottom:16px; display:flex; flex-direction:column; gap:8px; }
+        .chat-message { background:var(--bg-element); border:1px solid var(--border); padding:8px 12px; border-radius:var(--radius-sm); display:flex; gap:10px; align-items:flex-start; }
+        .chat-message .chat-avatar { flex-shrink:0; }
+        .chat-message .chat-content { flex:1; }
+        .chat-message .author { font-weight:600; color:var(--accent); cursor:pointer; }
+        .chat-message .date { font-size:12px; color:var(--text-muted); margin-left:8px; }
+        .chat-message .text { margin-top:4px; }
+        .chat-form { display:flex; gap:8px; align-items:flex-end; }
+        .chat-form textarea { flex:1; }
+        .chat-form .file-upload { margin:0; }
+        .support-answer { background:var(--bg-hover); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:8px 12px; margin-top:8px; }
+        .support-answer .admin-name { font-weight:600; color:var(--accent); cursor:pointer; }
+        .support-answer .answer-text { margin-top:4px; }
+        .notification-container { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .notification { background:var(--bg-container); border:1px solid var(--accent); border-radius:var(--radius); padding:12px 16px; box-shadow:0 4px 12px rgba(0,0,0,0.5); min-width:250px; max-width:350px; animation:slideIn 0.3s ease, fadeOut 0.5s ease 4s forwards; cursor:pointer; transition:var(--transition); }
+        .notification:hover { background:var(--bg-hover); }
+        @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes fadeOut { to { opacity:0; transform:translateY(10px); } }
+        .notification .notif-text { font-size:14px; color:var(--text-primary); }
+        .notification .notif-time { font-size:12px; color:var(--text-muted); margin-top:4px; }
+        .frame-options { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; max-height:300px; overflow-y:auto; }
+        .frame-option { padding:8px 12px; background:var(--bg-element); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); }
+        .frame-option:hover { background:var(--bg-hover); }
+        .avatar-frame-button { position:absolute; bottom:2px; right:2px; z-index:20; background:var(--accent); border:none; border-radius:50%; width:24px; height:24px; color:white; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+        /* === БАЗОВЫЕ РАМКИ === */
+        .frame-none { border-color: transparent; }
+        .frame-red { border-color: #dc3545; box-shadow: 0 0 10px rgba(220,53,69,0.5); }
+        .frame-black { border-color: #000; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .frame-rgb { animation: rgb-glow 2s linear infinite; }
+        .frame-violet-black { animation: violet-black-glow 2s linear infinite; }
+        @keyframes rgb-glow { 0% { border-color: red; } 25% { border-color: orange; } 50% { border-color: green; } 75% { border-color: blue; } 100% { border-color: red; } }
+        @keyframes violet-black-glow { 0% { border-color: #8A2BE2; } 50% { border-color: #000; } 100% { border-color: #8A2BE2; } }
+        .frame-custom { border: 2px solid transparent; background: linear-gradient(var(--bg-body), var(--bg-body)) padding-box, linear-gradient(to right, var(--c1), var(--c2)) border-box; }
+
+        /* Обёртка для внешних элементов */
+        .avatar-outer { position: relative; display: inline-block; }
+        .avatar-outer .user-avatar { overflow: visible; }
+
+        /* Мигающая рамка (без стикеров) */
+        .frame-outer-flash .user-avatar {
+            animation: flash-border 2s linear infinite;
+            border: 3px solid transparent;
+            background-image: linear-gradient(var(--bg-body), var(--bg-body)), linear-gradient(45deg, var(--flash-color1, red), var(--flash-color2, blue));
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+        }
+        @keyframes flash-border {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* Картинная рамка (без стикеров) */
+        .frame-outer-picture {
+            padding: 8px;
+            background: linear-gradient(135deg, #d4af37, #8b6508, #d4af37);
+            border-radius: 12px;
+            box-shadow: 0 0 25px gold, inset 0 0 15px rgba(255,215,0,0.6);
+        }
+        .frame-outer-picture .user-avatar {
+            border-radius: 8px;
+            border: none;
+        }
+
+        /* Загрузка (полукруг, без стикеров) */
+        .frame-outer-loading::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            width: calc(100% + 10px);
+            height: calc(100% + 10px);
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: #fff;
+            border-right-color: #fff;
+            animation: loading-spin 1s linear infinite;
+        }
+        @keyframes loading-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Кошачьи ушки (как в Discord, чистый CSS) */
+        .frame-outer-catears::before,
+        .frame-outer-catears::after {
+            content: '';
+            position: absolute;
+            top: -12px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 12px 18px 12px;
+            border-color: transparent transparent #f5f5f5 transparent;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+            animation: ear-wiggle 2s ease-in-out infinite alternate;
+        }
+        .frame-outer-catears::before {
+            left: -5px;
+            transform: rotate(-25deg);
+        }
+        .frame-outer-catears::after {
+            right: -5px;
+            transform: rotate(25deg);
+        }
+        /* Внутренние розовые части ушек */
+        .frame-outer-catears .user-avatar::before,
+        .frame-outer-catears .user-avatar::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 8px 12px 8px;
+            border-color: transparent transparent #ffb6c1 transparent;
+            z-index: 1;
+        }
+        .frame-outer-catears .user-avatar::before {
+            left: 3px;
+        }
+        .frame-outer-catears .user-avatar::after {
+            right: 3px;
+        }
+        @keyframes ear-wiggle {
+            0% { transform: rotate(-25deg); }
+            100% { transform: rotate(-35deg); }
+        }
+
+        /* Наушники: огромный стикер над аватаркой */
+        .frame-outer-headphones::before {
+            content: '🎧';
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+            line-height: 1;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+            animation: headphone-bounce 2s ease-in-out infinite alternate;
+        }
+        @keyframes headphone-bounce {
+            0% { transform: translateX(-50%) translateY(0); }
+            100% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* Змея: эмодзи змеи, ползает вокруг аватарки */
+        .frame-outer-snake::before {
+            content: '🐍';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            font-size: 30px;
+            animation: snake-crawl 5s linear infinite;
+        }
+        @keyframes snake-crawl {
+            0% { transform: translate(0,0) rotate(0deg); }
+            25% { transform: translate(60px,0) rotate(90deg); }
+            50% { transform: translate(60px,60px) rotate(180deg); }
+            75% { transform: translate(0,60px) rotate(270deg); }
+            100% { transform: translate(0,0) rotate(360deg); }
+        }
+
+        /* Снежинки: несколько стикеров ❄ в разных местах */
+        .frame-outer-snowflakes::before,
+        .frame-outer-snowflakes::after {
+            content: '❄';
+            position: absolute;
+            top: -8px;
+            font-size: 20px;
+            color: #fff;
+            z-index: 10;
+            animation: snow-fall 3s linear infinite;
+        }
+        .frame-outer-snowflakes::before { left: 10%; animation-delay: 0s; }
+        .frame-outer-snowflakes::after { left: 70%; animation-delay: 1.2s; }
+        .frame-outer-snowflakes .user-avatar::before,
+        .frame-outer-snowflakes .user-avatar::after {
+            content: '❄';
+            position: absolute;
+            top: -12px;
+            font-size: 16px;
+            color: #fff;
+            z-index: 10;
+            animation: snow-fall 3.5s linear infinite;
+        }
+        .frame-outer-snowflakes .user-avatar::before { left: 30%; animation-delay: 0.5s; }
+        .frame-outer-snowflakes .user-avatar::after { left: 80%; animation-delay: 1.8s; }
+        @keyframes snow-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(50px) rotate(360deg); opacity: 0; }
+        }
+
+        /* Кепка: стикер кепки сверху */
+        .frame-outer-cap::before {
+            content: '🧢';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 45px;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            animation: cap-bounce 2s ease-in-out infinite alternate;
+        }
+        @keyframes cap-bounce {
+            0% { transform: translateX(-50%) translateY(0); }
+            100% { transform: translateX(-50%) translateY(-3px); }
+        }
+
+        .profile-background { background-size: cover; background-position: center; }
+        .clickable-avatar { cursor:pointer; }
+        .profile-avatar-wrapper { position: relative; display: inline-block; }
+        .currency-badge { color: gold; font-weight: bold; }
+        .mini-games { display:flex; gap:4px; align-items:center; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo" id="logoHome">DSF <span>v4.0</span></div>
+        <nav style="display:flex; gap:4px;">
+            <span class="nav-link active" data-view="home">Главная</span>
+            <span class="nav-link" data-view="users">Пользователи</span>
+            <span class="nav-link" data-view="topics">Темы</span>
+            <span class="nav-link" data-view="messages">Сообщения</span>
+            <span class="nav-link" data-view="shop">Магазин</span>
+        </nav>
+        <form class="search-form" id="searchForm">
+            <input type="text" id="searchInput" placeholder="Поиск по темам...">
+        </form>
+        <div class="user-info" id="userInfo"></div>
+        <div class="mini-games">
+            <button class="btn btn-outline" id="flappyBtn" title="Flappy Bird: 1 форум за трубу">🐦</button>
+            <button class="btn btn-outline" id="afkBtn" title="AFK фарм: 6 форумов/мин">⏳</button>
+            <button class="btn btn-outline" id="adBtn" title="Реклама: 2 или 35 форумов">📺</button>
+        </div>
+        <button class="btn btn-primary" id="newTopicBtn">➕ Новая тема</button>
+    </header>
+
+    <nav class="breadcrumbs" id="breadcrumbs"><a data-action="home">Главная</a></nav>
+    <main class="container" id="contentArea"></main>
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <!-- Модальные окна -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <h3>Вход</h3>
+            <div class="form-group"><label>Логин</label><input type="text" id="loginUsername" placeholder="Введите логин"></div>
+            <div class="form-group"><label>Пароль</label><input type="password" id="loginPassword" placeholder="Введите пароль"></div>
+            <div class="modal-actions"><button class="btn btn-outline" id="cancelLoginBtn">Отмена</button><button class="btn btn-primary" id="confirmLoginBtn">Войти</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="registerModal">
+        <div class="modal">
+            <h3>Регистрация</h3>
+            <div class="form-group"><label>Логин</label><input type="text" id="regUsername" placeholder="Придумайте логин"></div>
+            <div class="form-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="Придумайте пароль"></div>
+            <div class="form-group"><label>Повторите пароль</label><input type="password" id="regPassword2" placeholder="Повторите пароль"></div>
+            <div class="form-group"><label>Аватар (нажмите, чтобы загрузить)</label><div class="file-upload"><label for="regFileInput">📁 Загрузить фото</label><input type="file" id="regFileInput" accept="image/*"><img class="preview" id="regPreview" style="display:none;"></div></div>
+            <div class="modal-actions"><button class="btn btn-outline" id="cancelRegBtn">Отмена</button><button class="btn btn-primary" id="confirmRegBtn">Зарегистрироваться</button></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="topicModal">
+        <div class="modal">
+            <h3>Новая тема</h3>
+            <div class="form-group"><label>Заголовок</label><input type="text" id="topicTitle" placeholder="Введите заголовок"></div>
+            <div class="form-group"><label>Сообщение</label><textarea id="topicText" placeholder="Текст первого сообщения"></textarea></div>
+            <div class="form-group"><label>Прикрепить медиа (изображение, видео, аудио)</label><div class="file-upload"><label for="topicFileInput">📎 Выбрать файл</label><input type="file" id="topicFileInput" accept="image/*,video/*,audio/*"><span id="topicFileInfo" style="font-size:12px; color:var(--text-muted);"></span></div></div>
+            <div class="modal-actions"><button class="btn btn-outline" id="cancelTopicBtn">Отмена</button><button class="btn btn-primary" id="submitTopicBtn">Создать</button></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ============ ХРАНИЛИЩЕ ============
+            function safeGet(key, fallback) { try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; } catch(e) { console.error(e); return fallback; } }
+            function safeSet(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch(e) { console.error(e); alert('Не удалось сохранить данные.'); return false; } }
+
+            const USERS_KEY = 'forum_users';
+            const SESSION_KEY = 'forum_session';
+            const TOPICS_KEY = 'forum_topics';
+            const SUPPORT_KEY = 'forum_support_messages';
+            const REQUESTS_KEY = 'forum_friend_requests';
+            const CONVERSATIONS_KEY = 'forum_conversations';
+            const NOTIFICATIONS_KEY = 'forum_notifications';
+
+            function loadUsers() {
+                const users = safeGet(USERS_KEY, []);
+                users.forEach(u => {
+                    if (!u.frame) u.frame = 'none';
+                    if (!u.frameColor1) u.frameColor1 = '#ff0000';
+                    if (!u.frameColor2) u.frameColor2 = '#0000ff';
+                    if (!u.backgroundUrl) u.backgroundUrl = '';
+                    if (!u.currency) u.currency = 0;
+                    if (!u.ownedFrames) u.ownedFrames = [];
+                });
+                return users;
+            }
+            function saveUsers(users) { return safeSet(USERS_KEY, users); }
+            function loadSession() { try { return localStorage.getItem(SESSION_KEY) || null; } catch(e) { return null; } }
+            function saveSession(username) { try { localStorage.setItem(SESSION_KEY, username); } catch(e) {} }
+            function clearSession() { try { localStorage.removeItem(SESSION_KEY); } catch(e) {} }
+            function loadTopics() { return safeGet(TOPICS_KEY, []); }
+            function saveTopics(topics) { return safeSet(TOPICS_KEY, topics); }
+            function loadSupportMessages() { return safeGet(SUPPORT_KEY, []); }
+            function saveSupportMessages(messages) { return safeSet(SUPPORT_KEY, messages); }
+            function loadRequests() { return safeGet(REQUESTS_KEY, []); }
+            function saveRequests(requests) { return safeSet(REQUESTS_KEY, requests); }
+            function loadConversations() { return safeGet(CONVERSATIONS_KEY, []); }
+            function saveConversations(conversations) { return safeSet(CONVERSATIONS_KEY, conversations); }
+            function loadNotifications() { return safeGet(NOTIFICATIONS_KEY, []); }
+            function saveNotifications(notifications) { return safeSet(NOTIFICATIONS_KEY, notifications); }
+
+            let users = loadUsers();
+            let topics = loadTopics();
+            let supportMessages = loadSupportMessages();
+            let requests = loadRequests();
+            let conversations = loadConversations();
+            let notifications = loadNotifications();
+            let currentUser = loadSession();
+            let currentView = 'home';
+            let currentTopicId = null;
+            let nextTopicId = topics.length ? Math.max(...topics.map(t=>t.id)) + 1 : 1;
+            const topicsPerPage = 5;
+            const messagesPerPage = 5;
+            let currentTopicsPage = 1;
+            let currentMessagesPage = 1;
+
+            const contentArea = document.getElementById('contentArea');
+            const breadcrumbs = document.getElementById('breadcrumbs');
+            const searchForm = document.getElementById('searchForm');
+            const searchInput = document.getElementById('searchInput');
+            const userInfo = document.getElementById('userInfo');
+            const newTopicBtn = document.getElementById('newTopicBtn');
+            const loginModal = document.getElementById('loginModal');
+            const registerModal = document.getElementById('registerModal');
+            const topicModal = document.getElementById('topicModal');
+            const regFileInput = document.getElementById('regFileInput');
+            const regPreview = document.getElementById('regPreview');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const topicFileInput = document.getElementById('topicFileInput');
+            const topicFileInfo = document.getElementById('topicFileInfo');
+            const logoHome = document.getElementById('logoHome');
+            const notificationContainer = document.getElementById('notificationContainer');
+
+            let regAvatarDataUrl = '';
+
+            function hasRole(user, role) { return user && user.roles && user.roles.includes(role); }
+            function isAdmin(user) { return hasRole(user, 'admin') || hasRole(user, 'head_admin'); }
+
+            // ============ УВЕДОМЛЕНИЯ ============
+            function addNotification(toUser, message) {
+                const notification = { id: Date.now(), toUser, message, time: new Date().toLocaleString('ru-RU'), read: false };
+                notifications.push(notification);
+                saveNotifications(notifications);
+                if (toUser === currentUser) showNotification(notification);
+            }
+            function showNotification(notification) {
+                const div = document.createElement('div');
+                div.className = 'notification';
+                div.innerHTML = `<div class="notif-text">${notification.message}</div><div class="notif-time">${notification.time}</div>`;
+                notificationContainer.appendChild(div);
+                notifications = notifications.filter(n => n.id !== notification.id);
+                saveNotifications(notifications);
+                setTimeout(() => div.remove(), 4500);
+            }
+            function checkNotifications() {
+                if (!currentUser) return;
+                const userNotifications = notifications.filter(n => n.toUser === currentUser && !n.read);
+                userNotifications.forEach(n => showNotification(n));
+            }
+            setInterval(checkNotifications, 5000);
+            checkNotifications();
+
+            // ============ АВАТАР С РАМКОЙ ============
+            function getUserAvatarHtml(user, size = 32) {
+                const avatarContent = user.avatar && user.avatar.startsWith('data:image') ? `<img src="${user.avatar}" alt="avatar">` : (user.username ? user.username.charAt(0).toUpperCase() : '?');
+                const frameClass = user.frame || 'none';
+                let style = `width:${size}px;height:${size}px;font-size:${size/2}px;`;
+                if (user.frame === 'custom') style += `--c1:${user.frameColor1}; --c2:${user.frameColor2};`;
+                if (user.frame === 'flash') style += `--flash-color1:${user.frameColor1 || '#ff0000'}; --flash-color2:${user.frameColor2 || '#0000ff'};`;
+
+                const outerFrames = ['picture', 'loading', 'catears', 'headphones', 'snake', 'snowflakes', 'cap', 'flash'];
+                if (outerFrames.includes(frameClass)) {
+                    return `<span class="avatar-outer frame-outer-${frameClass}"><span class="user-avatar frame-${frameClass}" style="${style}">${avatarContent}</span></span>`;
+                } else {
+                    return `<span class="user-avatar frame-${frameClass}" style="${style}">${avatarContent}</span>`;
+                }
+            }
+
+            function updateUserUI() {
+                if (currentUser) {
+                    const user = users.find(u => u.username === currentUser);
+                    if (!user) { clearSession(); currentUser = null; updateUserUI(); renderHome(); return; }
+                    if (user.premiumUntil && Date.now() > user.premiumUntil) {
+                        user.roles = user.roles.filter(r => r !== 'premium');
+                        delete user.premiumUntil;
+                        saveUsers(users);
+                    }
+                    user.lastActive = Date.now();
+                    saveUsers(users);
+                    const roles = user.roles || ['user'];
+                    let badges = '';
+                    const roleMap = { head_admin: '<span class="role-badge head_admin">гл.администратор</span>', admin: '<span class="role-badge admin">Администратор</span>', premium: '<span class="role-badge premium">premium</span>', beta: '<span class="role-badge beta">Бета-тестер</span>', user: '<span class="role-badge user">Игрок</span>' };
+                    roles.forEach(role => { if (roleMap[role]) badges += roleMap[role]; });
+                    const nicknameClass = hasRole(user, 'premium') ? 'premium-nickname' : '';
+                    const neonColor = user.neonColor || '#ff00ff';
+                    const style = hasRole(user, 'premium') ? `style="--neon-color:${neonColor};"` : '';
+                    const currency = user.currency || 0;
+                    userInfo.innerHTML = `
+                        <div class="clickable-user" id="userClickable">
+                            ${getUserAvatarHtml(user, 32)}
+                            <span class="${nicknameClass}" ${style}>${currentUser}</span>
+                            ${badges}
+                            <span class="currency-badge">💰${currency}</span>
+                        </div>
+                    `;
+                    document.getElementById('userClickable').addEventListener('click', () => openProfile());
+                } else {
+                    userInfo.innerHTML = `<button class="btn btn-outline" id="loginBtn">Вход</button><button class="btn btn-outline" id="registerBtn">Регистрация</button>`;
+                    document.getElementById('loginBtn').addEventListener('click', openLoginModal);
+                    document.getElementById('registerBtn').addEventListener('click', openRegisterModal);
+                }
+            }
+
+            // ============ МОДАЛКИ ============
+            function openLoginModal() { document.getElementById('loginUsername').value=''; document.getElementById('loginPassword').value=''; loginModal.style.display='flex'; setTimeout(()=>document.getElementById('loginUsername').focus(),50); }
+            function openRegisterModal() { document.getElementById('regUsername').value=''; document.getElementById('regPassword').value=''; document.getElementById('regPassword2').value=''; regFileInput.value=''; regAvatarDataUrl=''; regPreview.style.display='none'; registerModal.style.display='flex'; setTimeout(()=>document.getElementById('regUsername').focus(),50); }
+            function closeModal(modal) { modal.style.display='none'; }
+
+            regFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => { regAvatarDataUrl = ev.target.result; regPreview.src = regAvatarDataUrl; regPreview.style.display = 'block'; };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('confirmLoginBtn').addEventListener('click', () => {
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value.trim();
+                if (!username || !password) { alert('Заполните все поля'); return; }
+                const user = users.find(u => u.username === username && u.password === password);
+                if (!user) { alert('Неверный логин или пароль'); return; }
+                user.lastActive = Date.now(); saveUsers(users);
+                currentUser = user.username; saveSession(user.username);
+                closeModal(loginModal); updateUserUI(); renderHome();
+            });
+            document.getElementById('cancelLoginBtn').addEventListener('click', () => closeModal(loginModal));
+            loginModal.addEventListener('click', (e) => { if (e.target === loginModal) closeModal(loginModal); });
+
+            document.getElementById('confirmRegBtn').addEventListener('click', () => {
+                const username = document.getElementById('regUsername').value.trim();
+                const password = document.getElementById('regPassword').value.trim();
+                const password2 = document.getElementById('regPassword2').value.trim();
+                if (!username || !password || !password2) { alert('Заполните все поля'); return; }
+                if (password !== password2) { alert('Пароли не совпадают'); return; }
+                if (users.some(u => u.username === username)) { alert('Пользователь с таким логином уже существует'); return; }
+                const newUser = { username, password, avatar: regAvatarDataUrl || '', roles: ['user'], neonColor: '#ff00ff', lastActive: Date.now(), frame: 'none', frameColor1: '#ff0000', frameColor2: '#0000ff', backgroundUrl: '', currency: 0, ownedFrames: [] };
+                users.push(newUser); if (!saveUsers(users)) return;
+                currentUser = username; saveSession(username);
+                closeModal(registerModal); updateUserUI(); renderHome();
+            });
+            document.getElementById('cancelRegBtn').addEventListener('click', () => closeModal(registerModal));
+            registerModal.addEventListener('click', (e) => { if (e.target === registerModal) closeModal(registerModal); });
+
+            // ============ НАВИГАЦИЯ ============
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                    const view = link.dataset.view;
+                    switch(view) { 
+                        case 'home': renderHome(); break; 
+                        case 'users': renderUsers(); break; 
+                        case 'topics': renderTopics(); break; 
+                        case 'messages': renderMessages(); break; 
+                        case 'shop': renderShop(); break; 
+                    }
+                });
+            });
+            logoHome.addEventListener('click', () => { navLinks.forEach(l => l.classList.remove('active')); document.querySelector('.nav-link[data-view="home"]').classList.add('active'); renderHome(); });
+
+            // ============ ГЛАВНАЯ ============
+            function renderHome() {
+                currentView='home';
+                breadcrumbs.innerHTML='<a data-action="home">Главная</a>';
+                const totalUsers = users.length;
+                const now = Date.now();
+                const onlineUsers = users.filter(u => u.lastActive && now - u.lastActive < 5 * 60 * 1000).length;
+                contentArea.innerHTML = `
+                    <div class="stats-bar">
+                        <div class="stat-item"><span class="stat-icon">👥</span><span class="stat-value">${totalUsers}</span><span class="stat-label">зарегистрировано</span></div>
+                        <div class="stat-item"><span class="stat-icon">🟢</span><span class="stat-value">${onlineUsers}</span><span class="stat-label">онлайн</span></div>
+                    </div>
+                    <h1 style="text-align:center; margin:20px 0;">Добро пожаловать на DSF!</h1>
+                    <p style="text-align:center;">Выберите раздел в навигации</p>
+                `;
+                document.querySelectorAll('[data-action="home"]').forEach(el=>el.addEventListener('click',(e)=>{e.preventDefault();renderHome();}));
+            }
+
+            // ============ ТЕМЫ ============
+            function renderTopics(page = 1) {
+                currentView='topics'; currentTopicId=null; currentTopicsPage=page; breadcrumbs.innerHTML='<a data-action="home">Главная</a><span class="sep">→</span><a>Темы</a>'; contentArea.innerHTML='';
+                const filtered = getFilteredTopics(searchInput.value);
+                const totalPages = Math.ceil(filtered.length / topicsPerPage);
+                const start = (page-1)*topicsPerPage;
+                const pageTopics = filtered.slice(start, start+topicsPerPage);
+                if (pageTopics.length===0) { contentArea.innerHTML='<p style="text-align:center;padding:20px;">Темы не найдены.</p>'; return; }
+                const table = document.createElement('table'); table.className='forum-table';
+                table.innerHTML = `
+                    <thead><tr><th>Тема</th><th>Автор</th><th>Ответы</th><th>Последнее сообщение</th></tr></thead>
+                    <tbody>
+                        ${pageTopics.map(topic => {
+                            const replies = topic.messages.length-1;
+                            const lastMsg = topic.messages[topic.messages.length-1];
+                            const authorUser = users.find(u=>u.username===topic.author);
+                            const authorNicknameClass = authorUser && hasRole(authorUser,'premium') ? 'premium-nickname' : '';
+                            const authorStyle = authorUser && hasRole(authorUser,'premium') ? `style="--neon-color:${authorUser.neonColor||'#ff00ff'};"` : '';
+                            return `<tr data-topic-id="${topic.id}">
+                                <td><div class="forum-title">${topic.title}</div></td>
+                                <td><span class="${authorNicknameClass}" ${authorStyle} data-username="${topic.author}">${topic.author}</span></td>
+                                <td>${replies}</td>
+                                <td class="forum-meta">${lastMsg ? `${lastMsg.author} — ${lastMsg.date}` : 'нет сообщений'}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                `;
+                contentArea.appendChild(table);
+                if (totalPages>1) { const pagination=document.createElement('div'); pagination.className='pagination'; pagination.innerHTML=createPagination(page,totalPages,'topics'); contentArea.appendChild(pagination); attachPaginationHandlers(); }
+                document.querySelectorAll('tr[data-topic-id]').forEach(row=>row.addEventListener('click',()=>openTopic(parseInt(row.dataset.topicId))));
+                document.querySelectorAll('[data-username]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openUserInfo(el.dataset.username);
+                    });
+                });
+            }
+
+            // ============ ПОЛЬЗОВАТЕЛИ ============
+            function renderUsers() {
+                currentView='users'; breadcrumbs.innerHTML='<a data-action="home">Главная</a><span class="sep">→</span><a>Пользователи</a>'; contentArea.innerHTML='';
+                if (users.length===0) { contentArea.innerHTML='<p>Нет пользователей.</p>'; return; }
+                const table = document.createElement('table'); table.className='forum-table';
+                table.innerHTML = `
+                    <thead><tr><th>Аватар</th><th>Имя</th><th>Роли</th></tr></thead>
+                    <tbody>
+                        ${users.map(u=>{
+                            const frameClass = u.frame||'none';
+                            const avatarHtml = u.avatar && u.avatar.startsWith('data:image') ? `<img src="${u.avatar}" alt="avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">` : u.username.charAt(0).toUpperCase();
+                            let roleBadges = (u.roles||['user']).map(r=>{ switch(r){ case 'head_admin': return '<span class="role-badge head_admin">гл.администратор</span>'; case 'admin': return '<span class="role-badge admin">Администратор</span>'; case 'premium': return '<span class="role-badge premium">premium</span>'; case 'beta': return '<span class="role-badge beta">Бета-тестер</span>'; default: return '<span class="role-badge user">Игрок</span>'; } }).join(' ');
+                            const nicknameClass = hasRole(u,'premium') ? 'premium-nickname' : '';
+                            const neonColor = u.neonColor || '#ff00ff';
+                            const style = hasRole(u,'premium') ? `style="--neon-color:${neonColor};"` : '';
+                            const isCurrent = currentUser === u.username;
+                            return `<tr data-username="${u.username}" style="cursor:pointer;">
+                                <td><div class="user-avatar frame-${frameClass}" style="width:32px;height:32px;">${avatarHtml}</div></td>
+                                <td><span class="${nicknameClass}" ${style}>${u.username}</span> ${isCurrent?'<span style="color:var(--text-muted);font-size:12px;">(это вы)</span>':''}</td>
+                                <td>${roleBadges}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                `;
+                contentArea.appendChild(table);
+                document.querySelectorAll('tr[data-username]').forEach(row=>row.addEventListener('click',()=>openUserInfo(row.dataset.username)));
+            }
+
+            function openUserInfo(username) {
+                const targetUser = users.find(u=>u.username===username); if(!targetUser) return;
+                const currentUserObj = users.find(u=>u.username===currentUser);
+                const canDelete = currentUserObj && hasRole(currentUserObj,'head_admin') && currentUser!==username;
+                const alreadySent = requests.some(r=>r.fromUser===currentUser && r.toUser===username && r.status==='pending');
+                const overlay=document.createElement('div'); overlay.className='modal-overlay'; overlay.style.display='flex';
+                const modalStyle = targetUser.backgroundUrl ? `style="background-image:url(${targetUser.backgroundUrl}); background-size:cover; background-position:center;"` : '';
+                overlay.innerHTML=`
+                    <div class="modal" ${modalStyle}>
+                        <h3>Профиль пользователя</h3>
+                        <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;">
+                            ${getUserAvatarHtml(targetUser,64)}
+                            <div>
+                                <div style="font-size:20px;font-weight:600;">
+                                    <span class="${hasRole(targetUser,'premium')?'premium-nickname':''}" style="${hasRole(targetUser,'premium')?`--neon-color:${targetUser.neonColor||'#ff00ff'};`:''}">${targetUser.username}</span>
+                                </div>
+                                <div style="color:var(--text-muted);">${(targetUser.roles||['user']).map(role=>roleLabel(role)).join(', ')}</div>
+                            </div>
+                        </div>
+                        ${currentUser!==username && !alreadySent ? `<button class="btn btn-primary" id="sendFriendRequestBtn">Отправить запрос на переписку</button>` : ''}
+                        ${canDelete ? `<button class="btn btn-outline" id="deleteAccountBtn" style="color:#dc3545;">Удалить аккаунт</button>` : ''}
+                        <div class="modal-actions">
+                            <button class="btn btn-outline" id="closeUserInfoBtn">Закрыть</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#closeUserInfoBtn').addEventListener('click',()=>overlay.remove());
+                overlay.addEventListener('click',(e)=>{if(e.target===overlay) overlay.remove();});
+                if(canDelete) overlay.querySelector('#deleteAccountBtn').addEventListener('click',()=>{ if(confirm(`Удалить аккаунт "${targetUser.username}"?`)){ deleteUserAccount(targetUser.username); overlay.remove(); } });
+                const friendBtn=overlay.querySelector('#sendFriendRequestBtn'); if(friendBtn) friendBtn.addEventListener('click',()=>{ requests.push({id:Date.now(),fromUser:currentUser,toUser:username,status:'pending',date:new Date().toLocaleString('ru-RU')}); saveRequests(requests); addNotification(username,`${currentUser} отправил вам запрос на переписку`); alert('Запрос отправлен'); overlay.remove(); });
+            }
+
+            // ============ УДАЛЕНИЕ АККАУНТА ============
+            function deleteUserAccount(username) {
+                const targetUser = users.find(u => u.username === username);
+                if (!targetUser) return;
+                users = users.filter(u => u.username !== username);
+                topics = topics.filter(t => t.author !== username);
+                topics.forEach(t => { t.messages = t.messages.filter(m => m.author !== username); });
+                topics = topics.filter(t => t.messages.length > 0);
+                requests = requests.filter(r => r.fromUser !== username && r.toUser !== username);
+                conversations = conversations.filter(c => !c.participants.includes(username));
+                notifications = notifications.filter(n => n.toUser !== username);
+                saveUsers(users);
+                saveTopics(topics);
+                saveRequests(requests);
+                saveConversations(conversations);
+                saveNotifications(notifications);
+                if (currentUser === username) {
+                    clearSession();
+                    currentUser = null;
+                }
+            }
+
+            // ============ СООБЩЕНИЯ (личные) ============
+            function renderMessages() {
+                currentView='messages'; breadcrumbs.innerHTML='<a data-action="home">Главная</a><span class="sep">→</span><a>Сообщения</a>'; contentArea.innerHTML='';
+                if(!currentUser){contentArea.innerHTML='<p>Войдите для использования личных сообщений.</p>';return;}
+                contentArea.innerHTML=`<div class="tabs"><button class="tab active" data-tab="conversations">Мои переписки</button><button class="tab" data-tab="send">Отправить запрос</button><button class="tab" data-tab="inbox">Входящие запросы</button><button class="tab" data-tab="support">Поддержка</button></div><div id="tabContent"></div>`;
+                const tabs=document.querySelectorAll('.tab'); tabs.forEach(tab=>tab.addEventListener('click',()=>{ tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active'); renderTab(tab.dataset.tab); }));
+                renderTab('conversations');
+            }
+
+            function renderTab(tabName) {
+                const tabContent=document.getElementById('tabContent'); if(!tabContent) return;
+                if(tabName==='conversations'){
+                    const myConversations=conversations.filter(c=>c.participants.includes(currentUser));
+                    if(myConversations.length===0){tabContent.innerHTML='<p>Нет переписок. Отправьте запрос или примите входящий.</p>';return;}
+                    tabContent.innerHTML=myConversations.map(conv=>{
+                        const otherUser=conv.participants.find(p=>p!==currentUser);
+                        const lastMsg=conv.messages.length>0?conv.messages[conv.messages.length-1]:null;
+                        const lastText=lastMsg?(lastMsg.text||(lastMsg.mediaUrl?'📎 Медиа':'')):'Нет сообщений';
+                        return `<div class="conversation-item" data-conv-id="${conv.id}"><strong>${otherUser}</strong><span class="last-message">${lastText}</span></div>`;
+                    }).join('');
+                    tabContent.querySelectorAll('.conversation-item').forEach(item=>item.addEventListener('click',()=>openChat(parseInt(item.dataset.convId))));
+                } else if(tabName==='send'){
+                    const otherUsers=users.filter(u=>u.username!==currentUser);
+                    if(otherUsers.length===0){tabContent.innerHTML='<p>Нет других пользователей.</p>';return;}
+                    let options=otherUsers.map(u=>`<option value="${u.username}">${u.username}</option>`).join('');
+                    tabContent.innerHTML=`<h3>Отправить запрос на переписку</h3><div class="form-group"><label>Выберите пользователя</label><select id="requestUser">${options}</select></div><button class="btn btn-primary" id="sendRequestBtn">Отправить запрос</button>`;
+                    document.getElementById('sendRequestBtn').addEventListener('click',()=>{
+                        const toUser=document.getElementById('requestUser').value;
+                        if(!toUser)return;
+                        const existing=requests.some(r=>r.fromUser===currentUser && r.toUser===toUser && r.status==='pending');
+                        if(existing){alert('Запрос уже отправлен.');return;}
+                        requests.push({id:Date.now(),fromUser:currentUser,toUser,status:'pending',date:new Date().toLocaleString('ru-RU')});
+                        saveRequests(requests);
+                        addNotification(toUser,`${currentUser} отправил вам запрос на переписку`);
+                        alert('Запрос отправлен'); renderTab('send');
+                    });
+                } else if(tabName==='inbox'){
+                    const incoming=requests.filter(r=>r.toUser===currentUser && r.status==='pending');
+                    if(incoming.length===0){tabContent.innerHTML='<p>Нет входящих запросов.</p>';return;}
+                    tabContent.innerHTML=incoming.map(req=>`
+                        <div class="request-item">
+                            <span><strong>${req.fromUser}</strong> хочет начать переписку (${req.date})</span>
+                            <div class="actions">
+                                <button class="btn btn-primary" data-request-id="${req.id}" data-action="accept">Принять</button>
+                                <button class="btn btn-outline" data-request-id="${req.id}" data-action="decline">Отклонить</button>
+                            </div>
+                        </div>`).join('');
+                    tabContent.querySelectorAll('button[data-action]').forEach(btn=>btn.addEventListener('click',()=>{
+                        const reqId=parseInt(btn.dataset.requestId);
+                        const action=btn.dataset.action;
+                        const reqIndex=requests.findIndex(r=>r.id===reqId);
+                        if(reqIndex===-1)return;
+                        if(action==='accept'){
+                            requests[reqIndex].status='accepted'; saveRequests(requests);
+                            const fromUser=requests[reqIndex].fromUser; const toUser=requests[reqIndex].toUser;
+                            const existingConv=conversations.find(c=>c.participants.includes(fromUser)&&c.participants.includes(toUser));
+                            if(!existingConv){conversations.push({id:Date.now(),participants:[fromUser,toUser],messages:[]}); saveConversations(conversations);}
+                            addNotification(fromUser,`Ваш запрос принят`); renderTab('conversations');
+                        } else {
+                            requests[reqIndex].status='declined'; saveRequests(requests);
+                            addNotification(requests[reqIndex].fromUser,`Ваш запрос отклонён`); renderTab('inbox');
+                        }
+                    }));
+                } else if(tabName==='support'){
+                    const currentUserObj=users.find(u=>u.username===currentUser);
+                    if(isAdmin(currentUserObj)){
+                        if(supportMessages.length===0){tabContent.innerHTML='<p>Нет обращений.</p>';return;}
+                        tabContent.innerHTML='<h3>Вопросы пользователей</h3>';
+                        supportMessages.forEach(msg=>{
+                            const answerHtml=msg.answer?`<div class="support-answer"><b>${msg.answer.admin}:</b> ${msg.answer.text}</div>`:'';
+                            tabContent.innerHTML+=`<div class="support-message">
+                                <span class="author" data-username="${msg.author}">${msg.author}</span> <span class="date">${msg.date}</span>
+                                <div class="text">${msg.text}</div>
+                                ${answerHtml}
+                                ${!msg.answer ? `<textarea id="answer-${msg.id}" placeholder="Ответ"></textarea><button class="btn btn-primary" data-answer-id="${msg.id}">Ответить</button>` : ''}
+                                <button class="btn btn-outline profile-btn" data-username="${msg.author}" style="margin-top:6px;">Профиль</button>
+                            </div>`;
+                        });
+                        tabContent.querySelectorAll('button[data-answer-id]').forEach(btn=>btn.addEventListener('click',()=>{
+                            const id=btn.dataset.answerId; const textarea=document.getElementById(`answer-${id}`); const answerText=textarea.value.trim();
+                            if(!answerText){alert('Введите ответ');return;}
+                            const msg=supportMessages.find(m=>m.id==id);
+                            if(msg){msg.answer={admin:currentUser,text:answerText}; saveSupportMessages(supportMessages); addNotification(msg.author,`Администратор ответил на ваш вопрос`); renderTab('support');}
+                        }));
+                        tabContent.querySelectorAll('.profile-btn').forEach(btn=>btn.addEventListener('click',()=>openUserInfo(btn.dataset.username)));
+                        tabContent.querySelectorAll('.support-message .author').forEach(el=>el.addEventListener('click',()=>openUserInfo(el.dataset.username)));
+                    } else {
+                        tabContent.innerHTML=`<h3>Задать вопрос администратору</h3><div class="form-group"><textarea id="newQuestion" placeholder="Опишите вашу проблему..."></textarea></div><button class="btn btn-primary" id="sendQuestion">Отправить</button>`;
+                        document.getElementById('sendQuestion').addEventListener('click',()=>{
+                            const text=document.getElementById('newQuestion').value.trim(); if(!text){alert('Введите текст');return;}
+                            supportMessages.push({id:Date.now(),author:currentUser,text,date:new Date().toLocaleString('ru-RU'),answer:null});
+                            saveSupportMessages(supportMessages);
+                            users.filter(u=>isAdmin(u)).forEach(admin=>addNotification(admin.username,`Новый вопрос в поддержку`));
+                            renderTab('support');
+                        });
+                    }
+                }
+            }
+
+            function openChat(convId) {
+                const conv=conversations.find(c=>c.id===convId); if(!conv) return;
+                const otherUser=conv.participants.find(p=>p!==currentUser);
+                breadcrumbs.innerHTML=`<a data-action="home">Главная</a><span class="sep">→</span><a>Сообщения</a><span class="sep">→</span><a>Чат с ${otherUser}</a>`;
+                contentArea.innerHTML='';
+                const chatDiv=document.createElement('div'); chatDiv.className='chat-container';
+                chatDiv.innerHTML=`
+                    <div class="chat-header">Чат с ${otherUser}</div>
+                    <div class="chat-messages" id="chatMessages">
+                        ${conv.messages.map(msg=>{
+                            let mediaHtml='';
+                            if(msg.mediaUrl){
+                                if(msg.mediaType==='image') mediaHtml=`<img src="${msg.mediaUrl}" alt="img">`;
+                                else if(msg.mediaType==='video') mediaHtml=`<video controls src="${msg.mediaUrl}"></video>`;
+                                else if(msg.mediaType==='audio') mediaHtml=`<audio controls src="${msg.mediaUrl}"></audio>`;
+                            }
+                            const msgUser = users.find(u=>u.username===msg.author);
+                            const avatarHtml = msgUser ? getUserAvatarHtml(msgUser, 30) : `<div class="chat-avatar">?</div>`;
+                            return `<div class="chat-message">${avatarHtml}<div class="chat-content"><span class="author" data-username="${msg.author}">${msg.author}</span> <span class="date">${msg.date}</span><div class="text">${msg.text||''}</div>${mediaHtml}</div></div>`;
+                        }).join('')}
+                    </div>
+                    <div class="chat-form">
+                        <textarea id="chatMessageText" placeholder="Сообщение..."></textarea>
+                        <div class="file-upload"><label for="chatFileInput">📎</label><input type="file" id="chatFileInput" accept="image/*,video/*,audio/*"><span id="chatFileInfo" style="font-size:12px;color:var(--text-muted);"></span></div>
+                        <button class="btn btn-primary" id="sendChatMessageBtn">Отправить</button>
+                    </div>`;
+                contentArea.appendChild(chatDiv);
+                document.getElementById('sendChatMessageBtn').addEventListener('click',()=>{
+                    const text=document.getElementById('chatMessageText').value.trim();
+                    const fileInput=document.getElementById('chatFileInput');
+                    const file=fileInput.files[0];
+                    if(!text && !file){alert('Введите сообщение или прикрепите файл');return;}
+                    if(file){ const validation=validateFile(file); if(validation.error){alert(validation.error);return;} }
+                    if(file){
+                        const reader=new FileReader();
+                        reader.onload=(e)=>{
+                            const mediaUrl=e.target.result;
+                            const mediaType=file.type.startsWith('image/')?'image':(file.type.startsWith('video/')?'video':'audio');
+                            conv.messages.push({author:currentUser,text:text||'',date:new Date().toLocaleString('ru-RU'),mediaUrl,mediaType,frame:users.find(u=>u.username===currentUser)?.frame||'none'});
+                            saveConversations(conversations);
+                            addNotification(otherUser,`Новое сообщение от ${currentUser}`);
+                            openChat(convId);
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        conv.messages.push({author:currentUser,text:text||'',date:new Date().toLocaleString('ru-RU'),mediaUrl:null,mediaType:null,frame:users.find(u=>u.username===currentUser)?.frame||'none'});
+                        saveConversations(conversations);
+                        addNotification(otherUser,`Новое сообщение от ${currentUser}`);
+                        openChat(convId);
+                    }
+                });
+                document.getElementById('chatFileInput').addEventListener('change',(e)=>{ const file=e.target.files[0]; document.getElementById('chatFileInfo').textContent=file?file.name:''; });
+                document.querySelectorAll('.chat-message .author').forEach(el=>el.addEventListener('click',()=>openUserInfo(el.dataset.username)));
+            }
+
+            // ============ ТЕМЫ (создание/открытие) ============
+            newTopicBtn.addEventListener('click',()=>{ if(!currentUser){openLoginModal();return;} document.getElementById('topicTitle').value=''; document.getElementById('topicText').value=''; topicFileInput.value=''; topicFileInfo.textContent=''; topicModal.style.display='flex'; setTimeout(()=>document.getElementById('topicTitle').focus(),50); });
+            document.getElementById('cancelTopicBtn').addEventListener('click',()=>closeModal(topicModal));
+            document.getElementById('submitTopicBtn').addEventListener('click',()=>{
+                const title=document.getElementById('topicTitle').value.trim();
+                const text=document.getElementById('topicText').value.trim();
+                if(!title || !text){alert('Заполните заголовок и текст');return;}
+                const user=users.find(u=>u.username===currentUser); const avatar=user?user.avatar||'':''; const frame=user?user.frame:'none';
+                const file=topicFileInput.files[0];
+                if(file){
+                    const validation=validateFile(file); if(validation.error){alert(validation.error);return;}
+                    const reader=new FileReader();
+                    reader.onload=(e)=>{ const mediaUrl=e.target.result; const mediaType=file.type.startsWith('image/')?'image':(file.type.startsWith('video/')?'video':'audio'); const newTopic={id:nextTopicId++,title,author:currentUser,createdAt:new Date().toLocaleString('ru-RU'),messages:[{author:currentUser,avatar,text,date:new Date().toLocaleString('ru-RU'),mediaUrl,mediaType,frame}]}; topics.push(newTopic); saveTopics(topics); closeModal(topicModal); renderTopics(); };
+                    reader.readAsDataURL(file);
+                } else { const newTopic={id:nextTopicId++,title,author:currentUser,createdAt:new Date().toLocaleString('ru-RU'),messages:[{author:currentUser,avatar,text,date:new Date().toLocaleString('ru-RU'),mediaUrl:null,mediaType:null,frame}]}; topics.push(newTopic); saveTopics(topics); closeModal(topicModal); renderTopics(); }
+            });
+            topicFileInput.addEventListener('change',(e)=>{ const file=e.target.files[0]; if(!file){topicFileInfo.textContent='';return;} const validation=validateFile(file); if(validation.error){topicFileInfo.textContent=validation.error; topicFileInput.value='';} else topicFileInfo.textContent=file.name; });
+
+            function openTopic(topicId,page=1){
+                currentView='topic'; currentTopicId=topicId; currentMessagesPage=page;
+                const topic=topics.find(t=>t.id===topicId); if(!topic)return;
+                breadcrumbs.innerHTML=`<a data-action="home">Главная</a><span class="sep">→</span><a>Темы</a><span class="sep">→</span><a>${topic.title}</a>`;
+                contentArea.innerHTML='';
+                const h2=document.createElement('h2'); h2.textContent=topic.title; contentArea.appendChild(h2);
+                const totalPages=Math.ceil(topic.messages.length/messagesPerPage); const start=(page-1)*messagesPerPage; const pageMessages=topic.messages.slice(start,start+messagesPerPage);
+                const currentUserObj=users.find(u=>u.username===currentUser); const isAdminCurrent=isAdmin(currentUserObj);
+                pageMessages.forEach((msg,localIndex)=>{
+                    const globalIndex=start+localIndex; const msgDiv=document.createElement('div'); msgDiv.className='message';
+                    let avatarHtml=msg.avatar&&msg.avatar.startsWith('data:image')?`<img src="${msg.avatar}" alt="avatar">`:(msg.author?msg.author.charAt(0).toUpperCase():'?');
+                    const frameClass=msg.frame||'none';
+                    const authorUser=users.find(u=>u.username===msg.author);
+                    const authorNicknameClass=authorUser&&hasRole(authorUser,'premium')?'premium-nickname':'';
+                    const authorStyle=authorUser&&hasRole(authorUser,'premium')?`style="--neon-color:${authorUser.neonColor||'#ff00ff'};"`:'';
+                    let deleteButton=''; if(isAdminCurrent) deleteButton=`<button class="delete-admin-btn" data-global-index="${globalIndex}">Удалить</button>`; else if(currentUser&&msg.author===currentUser) deleteButton=`<button class="delete-own-btn" data-global-index="${globalIndex}">Удалить</button>`;
+                    let mediaHtml=''; if(msg.mediaUrl){ if(msg.mediaType==='image') mediaHtml=`<div class="media-attachment"><img src="${msg.mediaUrl}" alt="img"></div>`; else if(msg.mediaType==='video') mediaHtml=`<div class="media-attachment"><video controls src="${msg.mediaUrl}"></video></div>`; else if(msg.mediaType==='audio') mediaHtml=`<div class="media-attachment"><audio controls src="${msg.mediaUrl}"></audio></div>`; }
+                    msgDiv.innerHTML=`<div class="message-avatar frame-${frameClass}">${avatarHtml}</div><div class="message-content"><div class="message-header"><span class="message-author ${authorNicknameClass}" ${authorStyle} data-username="${msg.author}">${msg.author}</span><span class="message-date">${msg.date}</span>${deleteButton}</div><div class="message-text">${msg.text}</div>${mediaHtml}</div>`;
+                    contentArea.appendChild(msgDiv);
+                });
+                document.querySelectorAll('.delete-admin-btn, .delete-own-btn').forEach(btn=>btn.addEventListener('click',(e)=>{ e.stopPropagation(); const idx=parseInt(btn.dataset.globalIndex); if(confirm('Удалить это сообщение?')){ topic.messages.splice(idx,1); saveTopics(topics); if(topic.messages.length===0){topics=topics.filter(t=>t.id!==topic.id); saveTopics(topics); renderTopics();} else { const newTotalPages=Math.ceil(topic.messages.length/messagesPerPage); if(page>newTotalPages&&newTotalPages>0) openTopic(topicId,newTotalPages); else openTopic(topicId,page); } } }));
+                if(totalPages>1){ const pagination=document.createElement('div'); pagination.className='pagination'; pagination.innerHTML=createPagination(page,totalPages,'topic'); contentArea.appendChild(pagination); attachPaginationHandlers(); }
+                document.querySelectorAll('.message-author').forEach(el=>el.addEventListener('click',()=>openUserInfo(el.dataset.username)));
+                document.querySelectorAll('.message-avatar').forEach(el=>el.addEventListener('click',()=>{
+                    const authorSpan = el.parentElement.querySelector('.message-author');
+                    if(authorSpan) openUserInfo(authorSpan.dataset.username);
+                }));
+                const replyForm=document.createElement('div'); replyForm.className='reply-form';
+                if(currentUser){ const user=users.find(u=>u.username===currentUser); const avatarContent=user&&user.avatar&&user.avatar.startsWith('data:image')?`<img src="${user.avatar}" alt="avatar">`:(currentUser?currentUser.charAt(0).toUpperCase():'?'); const frameClass=user?user.frame:'none'; replyForm.innerHTML=`<h3>Ответить как ${currentUser} ${getUserAvatarHtml(user,32)}</h3><textarea id="replyText" placeholder="Ваше сообщение..."></textarea><div class="form-group" style="margin-top:10px;"><label>Прикрепить медиа</label><div class="file-upload"><label for="replyFileInput">📎 Выбрать файл</label><input type="file" id="replyFileInput" accept="image/*,video/*,audio/*"><span id="replyFileInfo" style="font-size:12px; color:var(--text-muted);"></span></div></div><div class="reply-actions"><button class="btn btn-primary" id="sendReplyBtn">Отправить</button></div>`; }
+                else replyForm.innerHTML='<p>Чтобы ответить, <a href="#" id="loginLink" style="color:var(--accent);">войдите</a>.</p>';
+                contentArea.appendChild(replyForm);
+                if(currentUser){ const replyFileInput=document.getElementById('replyFileInput'); const replyFileInfo=document.getElementById('replyFileInfo'); replyFileInput.addEventListener('change',(e)=>{ const file=e.target.files[0]; if(!file){replyFileInfo.textContent='';return;} const validation=validateFile(file); if(validation.error){replyFileInfo.textContent=validation.error; replyFileInput.value='';} else replyFileInfo.textContent=file.name; }); document.getElementById('sendReplyBtn').addEventListener('click',()=>{ const text=document.getElementById('replyText').value.trim(); if(!text)return; const user=users.find(u=>u.username===currentUser); const avatar=user?user.avatar||'':''; const frame=user?user.frame:'none'; let mediaUrl=null, mediaType=null; const file=replyFileInput.files[0]; if(file){ const validation=validateFile(file); if(validation.error){alert(validation.error);return;} const reader=new FileReader(); reader.onload=(e)=>{ mediaUrl=e.target.result; mediaType=file.type.startsWith('image/')?'image':(file.type.startsWith('video/')?'video':'audio'); topic.messages.push({author:currentUser,avatar,text,date:new Date().toLocaleString('ru-RU'),mediaUrl,mediaType,frame}); saveTopics(topics); const newTotalPages=Math.ceil(topic.messages.length/messagesPerPage); openTopic(topicId,newTotalPages); }; reader.readAsDataURL(file); } else { topic.messages.push({author:currentUser,avatar,text,date:new Date().toLocaleString('ru-RU'),mediaUrl:null,mediaType:null,frame}); saveTopics(topics); const newTotalPages=Math.ceil(topic.messages.length/messagesPerPage); openTopic(topicId,newTotalPages); } }); } else { document.getElementById('loginLink')?.addEventListener('click',(e)=>{e.preventDefault(); openLoginModal();}); }
+            }
+
+            function validateFile(file) { const user=users.find(u=>u.username===currentUser); const isPremium=user&&hasRole(user,'premium'); const maxSize=isPremium?500*1024*1024:5*1024*1024; if(file.size>maxSize) return {error:'Файл слишком большой'}; const ext=file.name.split('.').pop().toLowerCase(); if(ext==='gif'&&!isPremium) return {error:'GIF только для premium'}; return {ok:true}; }
+
+            // ============ ПРОФИЛЬ ============
+            function openProfile() {
+                currentView='profile'; breadcrumbs.innerHTML='<a data-action="home">Главная</a><span class="sep">→</span><a>Профиль</a>'; contentArea.innerHTML='';
+                const user=users.find(u=>u.username===currentUser); if(!user){renderHome();return;}
+                const profileDiv=document.createElement('div'); profileDiv.className='support-page profile-background'; if(user.backgroundUrl) profileDiv.style.backgroundImage=`url(${user.backgroundUrl})`;
+                profileDiv.innerHTML=`
+                    <h2 style="text-align:center;">Личный кабинет</h2>
+                    <div style="display:flex;align-items:center;gap:20px;margin:20px 0;">
+                        <div style="position: relative; display: inline-block;">
+                            <div class="clickable-avatar" id="clickableAvatar">${getUserAvatarHtml(user,64)}</div>
+                            <button id="changeFrameBtn" title="Выбрать рамку" style="position: absolute; bottom: 2px; right: 2px; z-index: 20; background: var(--accent); border: none; border-radius: 50%; width: 24px; height: 24px; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✎</button>
+                        </div>
+                        <div>
+                            <div style="font-size:20px;font-weight:600;"><span class="${hasRole(user,'premium')?'premium-nickname':''}" style="${hasRole(user,'premium')?`--neon-color:${user.neonColor||'#ff00ff'};`:''}">${user.username}</span></div>
+                            <div style="color:var(--text-muted);">${(user.roles||['user']).map(role=>roleLabel(role)).join(', ')}</div>
+                            <div style="color:gold;">Баланс: ${user.currency || 0} форумов</div>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Фон профиля (jpg/png, gif только premium)</label><div class="file-upload"><label for="profileBgInput">📁 Загрузить фон</label><input type="file" id="profileBgInput" accept="image/*"><span id="bgInfo" style="font-size:12px;color:var(--text-muted);"></span></div></div>
+                    ${hasRole(user,'premium')?`<div class="form-group"><label>Цвет ника</label><input type="color" id="neonColorInput" value="${user.neonColor||'#ff00ff'}"></div><div class="form-group"><label>Цвет рамки 1</label><input type="color" id="frameColor1Input" value="${user.frameColor1||'#ff0000'}"><label>Цвет рамки 2</label><input type="color" id="frameColor2Input" value="${user.frameColor2||'#0000ff'}"></div>`:''}
+                    <div class="form-group"><button class="role-code-btn" id="activationCodeBtn">🔑 Код активации</button><div class="role-code-input-area" id="activationArea" style="display:none;"><input type="text" id="activationCodeInput" placeholder="Введите код"><button class="btn btn-primary" id="submitActivationCode">OK</button></div></div>
+                    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;"><button class="btn btn-primary" id="saveProfileBtn">Сохранить</button><button class="btn btn-outline" id="logoutProfileBtn">Выйти</button></div>
+                    <div style="margin-top:20px; text-align:center;"><button class="btn btn-outline" id="deleteAccountBtn" style="color:#dc3545;">Удалить аккаунт</button></div>
+                    <input type="file" id="profileFileInput" accept="image/*" style="display:none;">
+                `;
+                contentArea.appendChild(profileDiv);
+                document.getElementById('clickableAvatar').addEventListener('click',()=>document.getElementById('profileFileInput').click());
+                let newAvatar=user.avatar;
+                document.getElementById('profileFileInput').addEventListener('change',(e)=>{ const file=e.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=(ev)=>{newAvatar=ev.target.result; document.getElementById('clickableAvatar').innerHTML=getUserAvatarHtml({...user,avatar:newAvatar},64);}; reader.readAsDataURL(file); });
+                document.getElementById('profileBgInput').addEventListener('change',(e)=>{ const file=e.target.files[0]; if(!file)return; const ext=file.name.split('.').pop().toLowerCase(); if(ext==='gif'&&!hasRole(user,'premium')){alert('GIF только для premium');return;} const reader=new FileReader(); reader.onload=(ev)=>{user.backgroundUrl=ev.target.result; document.getElementById('bgInfo').textContent='Фон загружен';}; reader.readAsDataURL(file); });
+                document.getElementById('changeFrameBtn').addEventListener('click',()=>openFrameModal(user));
+                document.getElementById('saveProfileBtn').addEventListener('click',()=>{ user.avatar=newAvatar||user.avatar; if(hasRole(user,'premium')){ user.neonColor=document.getElementById('neonColorInput').value; user.frameColor1=document.getElementById('frameColor1Input').value; user.frameColor2=document.getElementById('frameColor2Input').value; } if(!saveUsers(users))return; updateUserUI(); openProfile(); });
+                document.getElementById('logoutProfileBtn').addEventListener('click',()=>{ if(confirm('Вы точно хотите выйти?')){clearSession();currentUser=null;updateUserUI();renderHome();} });
+                document.getElementById('activationCodeBtn').addEventListener('click',()=>document.getElementById('activationArea').style.display='flex');
+                document.getElementById('submitActivationCode').addEventListener('click',()=>{
+                    const code=document.getElementById('activationCodeInput').value.trim();
+                    if(code==='1m3/2/3.2'){
+                        user.currency = (user.currency || 0) + 1000000;
+                        if(!saveUsers(users)) return;
+                        updateUserUI();
+                        openProfile();
+                        alert('Вы получили 1 000 000 форумов!');
+                        return;
+                    }
+                    const roleCodes={'DAaDdS1209':'admin','premiummm1/3.1.3':'premium','bettt1/3':'beta','gl/adm2.1/2/2.1':'head_admin'};
+                    if(roleCodes[code]){
+                        const newRole=roleCodes[code];
+                        if(newRole==='beta'){user.roles=['admin','premium','beta']; if(!user.neonColor) user.neonColor='#ff00ff';}
+                        else if(newRole==='head_admin'){user.roles=user.roles.filter(r=>r!=='user').concat('head_admin');}
+                        else {user.roles=user.roles.filter(r=>r!=='user'); if(!user.roles.includes(newRole)) user.roles.push(newRole); if(newRole==='premium' && !user.neonColor) user.neonColor='#ff00ff';}
+                        if(!saveUsers(users)) return;
+                        updateUserUI();
+                        openProfile();
+                    } else alert('Неверный код активации');
+                });
+
+                // Удаление аккаунта
+                document.getElementById('deleteAccountBtn').addEventListener('click',()=>{
+                    const overlay = document.createElement('div');
+                    overlay.className = 'modal-overlay';
+                    overlay.style.display = 'flex';
+                    overlay.innerHTML = `
+                        <div class="modal">
+                            <h3>Удаление аккаунта</h3>
+                            <p>Введите ваш пароль для подтверждения удаления.</p>
+                            <input type="password" id="deletePassword" placeholder="Пароль" style="width:100%; background:var(--bg-element); border:1px solid var(--border); border-radius:4px; padding:8px 12px; color:var(--text-primary);">
+                            <div style="display:flex; gap:10px; margin-top:16px;">
+                                <button class="btn btn-primary" id="confirmDeleteBtn">Удалить</button>
+                                <button class="btn btn-outline" id="forgotPasswordBtn">Не помню пароль</button>
+                                <button class="btn btn-outline" id="cancelDeleteBtn">Отмена</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+
+                    overlay.querySelector('#cancelDeleteBtn').addEventListener('click', () => overlay.remove());
+                    overlay.querySelector('#confirmDeleteBtn').addEventListener('click', () => {
+                        const password = overlay.querySelector('#deletePassword').value;
+                        if (password === user.password) {
+                            if (confirm('Вы уверены? Аккаунт будет удалён безвозвратно.')) {
+                                deleteUserAccount(currentUser);
+                                overlay.remove();
+                                updateUserUI();
+                                renderHome();
+                            }
+                        } else {
+                            alert('Неверный пароль');
+                        }
+                    });
+                    overlay.querySelector('#forgotPasswordBtn').addEventListener('click', () => {
+                        supportMessages.push({
+                            id: Date.now(),
+                            author: currentUser,
+                            text: `Пользователь ${currentUser} просит удалить аккаунт, но не помнит пароль.`,
+                            date: new Date().toLocaleString('ru-RU'),
+                            answer: null
+                        });
+                        saveSupportMessages(supportMessages);
+                        users.filter(u => isAdmin(u)).forEach(admin => addNotification(admin.username, `Новый запрос на удаление аккаунта от ${currentUser}`));
+                        alert('Запрос отправлен администратору. Ожидайте ответа в поддержке.');
+                        overlay.remove();
+                    });
+                });
+            }
+
+            function openFrameModal(user) {
+                const overlay=document.createElement('div'); overlay.className='modal-overlay'; overlay.style.display='flex';
+                let framesHtml = `
+                    <div class="frame-option" data-frame="none">Без рамки</div>
+                    ${isAdmin(user) ? '<div class="frame-option" data-frame="red">Красный ободок</div>' : ''}
+                    ${hasRole(user,'premium') ? '<div class="frame-option" data-frame="rgb">RGB переливающийся</div>' : ''}
+                    ${hasRole(user,'premium') ? '<div class="frame-option" data-frame="violet-black">Виолетово-черный</div>' : ''}
+                    ${hasRole(user,'beta') ? '<div class="frame-option" data-frame="black">Черный ободок</div>' : ''}
+                    ${hasRole(user,'premium') ? '<div class="frame-option" data-frame="custom">Свой градиент (2 цвета)</div>' : ''}
+                `;
+                const boughtFrames = user.ownedFrames || [];
+                const frameCatalog = {
+                    'flash': 'Мигающая рамка',
+                    'picture': 'Картинная рамка',
+                    'loading': 'Загрузка',
+                    'catears': 'Кошачьи ушки',
+                    'headphones': 'Наушники',
+                    'snake': 'Змея',
+                    'snowflakes': 'Снежинки',
+                    'cap': 'Кепка'
+                };
+                boughtFrames.forEach(frameId => {
+                    if (frameCatalog[frameId]) framesHtml += `<div class="frame-option" data-frame="${frameId}">${frameCatalog[frameId]}</div>`;
+                });
+                overlay.innerHTML=`<div class="modal"><h3>Выберите рамку</h3><div class="frame-options">${framesHtml}</div><div class="modal-actions"><button class="btn btn-outline" id="closeFrameModal">Закрыть</button></div></div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelectorAll('.frame-option').forEach(opt=>opt.addEventListener('click',()=>{ user.frame=opt.dataset.frame; if(!saveUsers(users))return; updateUserUI(); openProfile(); overlay.remove(); }));
+                overlay.querySelector('#closeFrameModal').addEventListener('click',()=>overlay.remove());
+                overlay.addEventListener('click',(e)=>{if(e.target===overlay) overlay.remove();});
+            }
+
+            // ============ МАГАЗИН ============
+            function renderShop() {
+                currentView='shop'; breadcrumbs.innerHTML='<a data-action="home">Главная</a><span class="sep">→</span><a>Магазин</a>';
+                const user = users.find(u=>u.username===currentUser);
+                if(!user){ contentArea.innerHTML='<div class="support-page"><h2>Магазин</h2><p>Войдите, чтобы совершать покупки.</p></div>'; return; }
+                const isPremium = hasRole(user, 'premium');
+                const shopItems = [
+                    { id: 'flash', name: 'Мигающая рамка', price: isPremium ? 4800 : 5000 },
+                    { id: 'picture', name: 'Картинная рамка', price: isPremium ? 9400 : 10000 },
+                    { id: 'loading', name: 'Загрузка', price: isPremium ? 4800 : 5000 },
+                    { id: 'catears', name: 'Кошачьи ушки', price: isPremium ? 9400 : 10000 },
+                    { id: 'headphones', name: 'Наушники', price: isPremium ? 4800 : 5000 },
+                    { id: 'snake', name: 'Змея', price: isPremium ? 7200 : 7500 },
+                    { id: 'snowflakes', name: 'Снежинки', price: isPremium ? 9400 : 10000 },
+                    { id: 'cap', name: 'Кепка', price: isPremium ? 4800 : 5000 }
+                ];
+                let itemsHtml = shopItems.map(item => {
+                    const previewUser = {...user, frame: item.id};
+                    const previewHtml = getUserAvatarHtml(previewUser, 32);
+                    return `
+                        <div style="border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; gap:10px;">
+                            <div style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;">${previewHtml}</div>
+                            <span style="flex:1;">${item.name}</span>
+                            <span>${item.price} форумов</span>
+                            <button class="btn btn-primary" data-frame-id="${item.id}" data-price="${item.price}">Купить</button>
+                        </div>
+                    `;
+                }).join('');
+                const premiumBlock = `
+                    <div style="border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:8px;">
+                        <h3>Премиум на 1 сутки</h3>
+                        <p>Цена: 1000 форумов</p>
+                        <button class="btn btn-primary" id="buyPremium1d">Купить</button>
+                    </div>
+                    <div style="border:1px solid var(--border); padding:12px; border-radius:8px; margin-bottom:8px;">
+                        <h3>Премиум на 3 суток</h3>
+                        <p>Цена: 3000 форумов</p>
+                        <button class="btn btn-primary" id="buyPremium3d">Купить</button>
+                    </div>
+                `;
+                contentArea.innerHTML = `
+                    <div class="support-page">
+                        <h2>Магазин</h2>
+                        <p>Ваш баланс: <strong>${user.currency || 0} форумов</strong></p>
+                        ${premiumBlock}
+                        <div style="margin-top:16px;">${itemsHtml}</div>
+                    </div>
+                `;
+                function purchasePremium(days, price) {
+                    if (hasRole(user, 'premium')) { alert('У вас уже есть премиум'); return; }
+                    if ((user.currency || 0) < price) { alert('Недостаточно форумов'); return; }
+                    user.currency -= price;
+                    user.roles.push('premium');
+                    user.premiumUntil = Date.now() + days * 24 * 60 * 60 * 1000;
+                    if (!saveUsers(users)) return;
+                    updateUserUI();
+                    renderShop();
+                    alert(`Премиум активирован на ${days} суток!`);
+                }
+                document.getElementById('buyPremium1d').addEventListener('click', () => purchasePremium(1, 1000));
+                document.getElementById('buyPremium3d').addEventListener('click', () => purchasePremium(3, 3000));
+
+                document.querySelectorAll('[data-frame-id]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const frameId = btn.dataset.frameId;
+                        const price = parseInt(btn.dataset.price);
+                        if ((user.currency || 0) < price) { alert('Недостаточно форумов'); return; }
+                        if (user.ownedFrames.includes(frameId)) { alert('У вас уже есть эта рамка'); return; }
+                        user.currency -= price;
+                        user.ownedFrames.push(frameId);
+                        if (!saveUsers(users)) return;
+                        updateUserUI();
+                        renderShop();
+                        alert('Покупка успешна!');
+                    });
+                });
+            }
+
+            // ============ МИНИ-ИГРЫ ============
+            function startFlappy() {
+                if (!currentUser) { alert('Войдите в аккаунт'); return; }
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.style.display = 'flex';
+                overlay.innerHTML = `
+                    <div class="modal" style="max-width: 400px;">
+                        <h3>Flappy Bird</h3>
+                        <canvas id="flappyCanvas" width="300" height="400" style="background: #87CEEB; display:block; margin:0 auto;"></canvas>
+                        <p>Нажмите пробел или кликните, чтобы лететь. За каждую трубу +1 форум.</p>
+                        <button class="btn btn-outline" id="closeFlappy">Закрыть</button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#closeFlappy').addEventListener('click', () => { overlay.remove(); cancelAnimationFrame(animationId); });
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); cancelAnimationFrame(animationId); } });
+
+                const canvas = overlay.querySelector('#flappyCanvas');
+                const ctx = canvas.getContext('2d');
+                let bird = { x: 100, y: 300, vy: 0, gravity: 0.28, jump: -6.5, size: 15 };
+                let pipes = [];
+                let score = 0;
+                let gameOver = false;
+                let animationId;
+
+                function addPipe() {
+                    const gap = 120;
+                    const topHeight = Math.random() * (canvas.height - gap - 50) + 20;
+                    pipes.push({ x: canvas.width, top: topHeight, bottom: canvas.height - topHeight - gap, passed: false });
+                }
+
+                function update() {
+                    if (gameOver) return;
+                    bird.vy += bird.gravity;
+                    bird.y += bird.vy;
+                    if (bird.y > canvas.height - bird.size) { bird.y = canvas.height - bird.size; bird.vy = 0; }
+                    if (bird.y < bird.size) { bird.y = bird.size; bird.vy = 0; }
+
+                    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) addPipe();
+                    pipes.forEach(p => p.x -= 2);
+                    pipes = pipes.filter(p => p.x + 40 > 0);
+                    pipes.forEach(p => {
+                        if (!p.passed && p.x + 40 < bird.x) {
+                            p.passed = true;
+                            score++;
+                            const user = users.find(u => u.username === currentUser);
+                            user.currency = (user.currency || 0) + 1;
+                            saveUsers(users);
+                            updateUserUI();
+                        }
+                        if (bird.x + bird.size > p.x && bird.x - bird.size < p.x + 40) {
+                            if (bird.y - bird.size < p.top || bird.y + bird.size > p.top + (canvas.height - p.top - p.bottom)) {
+                                gameOver = true;
+                            }
+                        }
+                    });
+                }
+
+                function draw() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(bird.x, bird.y, bird.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#228B22';
+                    pipes.forEach(p => {
+                        ctx.fillRect(p.x, 0, 40, p.top);
+                        ctx.fillRect(p.x, canvas.height - p.bottom, 40, p.bottom);
+                    });
+                    ctx.fillStyle = '#000';
+                    ctx.font = '20px Arial';
+                    ctx.fillText('Счёт: ' + score, 10, 30);
+                    if (gameOver) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '30px Arial';
+                        ctx.fillText('Игра окончена', 50, 200);
+                    }
+                }
+
+                function loop() {
+                    update();
+                    draw();
+                    if (!gameOver) animationId = requestAnimationFrame(loop);
+                }
+                loop();
+
+                window.addEventListener('keydown', function handler(e) {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        if (!gameOver) bird.vy = bird.jump;
+                        else {
+                            bird.y = 300; bird.vy = 0; pipes = []; score = 0; gameOver = false;
+                            loop();
+                        }
+                    }
+                });
+                canvas.addEventListener('click', () => {
+                    if (!gameOver) bird.vy = bird.jump;
+                    else {
+                        bird.y = 300; bird.vy = 0; pipes = []; score = 0; gameOver = false;
+                        loop();
+                    }
+                });
+            }
+
+            let afkTimer = null;
+            function toggleAFK() {
+                if (!currentUser) { alert('Войдите в аккаунт'); return; }
+                const user = users.find(u => u.username === currentUser);
+                if (afkTimer) {
+                    clearInterval(afkTimer);
+                    afkTimer = null;
+                    document.getElementById('afkBtn').textContent = '⏳';
+                    return;
+                }
+                document.getElementById('afkBtn').textContent = '⏳ Активен';
+                afkTimer = setInterval(() => {
+                    user.currency = (user.currency || 0) + 6;
+                    saveUsers(users);
+                    updateUserUI();
+                }, 60000);
+            }
+
+            function showAd(duration, reward) {
+                if (!currentUser) { alert('Войдите в аккаунт'); return; }
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.style.display = 'flex';
+                overlay.innerHTML = `
+                    <div class="modal" style="max-width: 500px;">
+                        <h3>Реклама</h3>
+                        <div id="adContent">
+                            <p>Смотрите рекламу о преимуществах Premium!</p>
+                            <p>Premium даёт неоновый ник, эксклюзивные рамки, увеличенный лимит файлов и многое другое.</p>
+                            <p>Купите Premium в магазине за 1000 форумов (1 день) или 3000 (3 дня).</p>
+                            <p>Осталось: <span id="adTimer">${duration}</span> сек</p>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-outline" id="cancelAd">Отмена</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#cancelAd').addEventListener('click', () => overlay.remove());
+                let secondsLeft = duration;
+                const timerInterval = setInterval(() => {
+                    secondsLeft--;
+                    const timerEl = overlay.querySelector('#adTimer');
+                    if (timerEl) timerEl.textContent = secondsLeft;
+                    if (secondsLeft <= 0) {
+                        clearInterval(timerInterval);
+                        const user = users.find(u => u.username === currentUser);
+                        user.currency = (user.currency || 0) + reward;
+                        saveUsers(users);
+                        updateUserUI();
+                        overlay.remove();
+                        alert(`Вы получили ${reward} форумов!`);
+                    }
+                }, 1000);
+            }
+
+            document.getElementById('flappyBtn').addEventListener('click', startFlappy);
+            document.getElementById('afkBtn').addEventListener('click', toggleAFK);
+            document.getElementById('adBtn').addEventListener('click', () => {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.style.display = 'flex';
+                overlay.innerHTML = `
+                    <div class="modal" style="max-width: 400px;">
+                        <h3>Выберите рекламу</h3>
+                        <button class="btn btn-primary" id="shortAd">Короткая (15 сек) — 2 форума</button>
+                        <button class="btn btn-primary" id="longAd">Длинная (150 сек) — 35 форумов</button>
+                        <button class="btn btn-outline" id="closeAdMenu">Закрыть</button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#closeAdMenu').addEventListener('click', () => overlay.remove());
+                overlay.querySelector('#shortAd').addEventListener('click', () => { overlay.remove(); showAd(15, 2); });
+                overlay.querySelector('#longAd').addEventListener('click', () => { overlay.remove(); showAd(150, 35); });
+            });
+
+            function roleLabel(role){ const map={head_admin:'гл.администратор',admin:'Администратор',premium:'premium',beta:'Бета-тестер',user:'Игрок'}; return map[role]||role; }
+            function getFilteredTopics(searchQuery=''){ let result=[...topics]; if(searchQuery.trim()){ const q=searchQuery.toLowerCase().trim(); result=result.filter(t=>t.title.toLowerCase().includes(q)||t.author.toLowerCase().includes(q)||t.messages.some(m=>m.text.toLowerCase().includes(q))); } result.sort((a,b)=>b.id-a.id); return result; }
+            function createPagination(currentPage,totalPages,type){ let html=`<button class="page-btn ${currentPage===1?'disabled':''}" data-page="${currentPage-1}" data-type="${type}">«</button>`; for(let i=1;i<=totalPages;i++) html+=`<button class="page-btn ${i===currentPage?'active':''}" data-page="${i}" data-type="${type}">${i}</button>`; html+=`<button class="page-btn ${currentPage===totalPages?'disabled':''}" data-page="${currentPage+1}" data-type="${type}">»</button>`; return html; }
+            function attachPaginationHandlers(){ document.querySelectorAll('.page-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(btn.classList.contains('disabled'))return; const page=parseInt(btn.dataset.page); const type=btn.dataset.type; if(type==='topics') renderTopics(page); else if(type==='topic') openTopic(currentTopicId,page); })); }
+
+            updateUserUI();
+            renderHome();
+        })();
+    </script>
+</body>
+</html>
