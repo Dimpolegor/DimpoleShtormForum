@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DSF v4.0 — Форум с улучшенными рамками</title>
+    <title>DSF v4.1 — Форум с общим чатом Supabase</title>
     <style>
         :root {
             --bg-body: #1e1e2e; --bg-container: #181825; --bg-element: #11111b; --bg-hover: #313244;
@@ -343,12 +343,13 @@
 </head>
 <body>
     <header class="header">
-        <div class="logo" id="logoHome">DSF <span>v4.0</span></div>
+        <div class="logo" id="logoHome">DSF <span>v4.1</span></div>
         <nav style="display:flex; gap:4px;">
             <span class="nav-link active" data-view="home">Главная</span>
             <span class="nav-link" data-view="users">Пользователи</span>
             <span class="nav-link" data-view="topics">Темы</span>
             <span class="nav-link" data-view="messages">Сообщения</span>
+            <span class="nav-link" data-view="chat">Общий чат</span>
             <span class="nav-link" data-view="shop">Магазин</span>
         </nav>
         <form class="search-form" id="searchForm">
@@ -396,9 +397,16 @@
         </div>
     </div>
 
+    <!-- Подключение Supabase из CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         (function() {
-            // ============ ХРАНИЛИЩЕ ============
+            // ============ SUPABASE CONFIG ============
+            const SUPABASE_URL = 'https://supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_X8GrV3f1pzOr6fjpM1ujgw_VGsM-zxz';
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // ============ ХРАНИЛИЩЕ (localStorage) ============
             function safeGet(key, fallback) { try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; } catch(e) { console.error(e); return fallback; } }
             function safeSet(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch(e) { console.error(e); alert('Не удалось сохранить данные.'); return false; } }
 
@@ -601,6 +609,7 @@
                         case 'users': renderUsers(); break; 
                         case 'topics': renderTopics(); break; 
                         case 'messages': renderMessages(); break; 
+                        case 'chat': renderChat(); break; 
                         case 'shop': renderShop(); break; 
                     }
                 });
@@ -1168,186 +1177,103 @@
                 });
             }
 
-            // ============ МИНИ-ИГРЫ ============
-            function startFlappy() {
-                if (!currentUser) { alert('Войдите в аккаунт'); return; }
-                const overlay = document.createElement('div');
-                overlay.className = 'modal-overlay';
-                overlay.style.display = 'flex';
-                overlay.innerHTML = `
-                    <div class="modal" style="max-width: 400px;">
-                        <h3>Flappy Bird</h3>
-                        <canvas id="flappyCanvas" width="300" height="400" style="background: #87CEEB; display:block; margin:0 auto;"></canvas>
-                        <p>Нажмите пробел или кликните, чтобы лететь. За каждую трубу +1 форум.</p>
-                        <button class="btn btn-outline" id="closeFlappy">Закрыть</button>
-                    </div>`;
-                document.body.appendChild(overlay);
-                overlay.querySelector('#closeFlappy').addEventListener('click', () => { overlay.remove(); cancelAnimationFrame(animationId); });
-                overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); cancelAnimationFrame(animationId); } });
+            // ============ ОБЩИЙ ЧАТ (Supabase) ============
+            async function renderChat() {
+                currentView = 'chat';
+                breadcrumbs.innerHTML = '<a data-action="home">Главная</a><span class="sep">→</span><a>Общий чат</a>';
+                contentArea.innerHTML = `
+                    <div class="chat-container">
+                        <h2>Общий чат</h2>
+                        <p style="color:var(--text-muted);">Для работы чата необходимо создать таблицу <strong>messages</strong> в Supabase с полями: id (uuid), author (text), text (text), created_at (timestamptz). Включите Realtime для этой таблицы.</p>
+                        <div class="chat-messages" id="supaChatMessages" style="min-height:300px; max-height:60vh; overflow-y:auto; margin:16px 0;"></div>
+                        <form id="supaChatForm" style="display:flex; gap:8px; align-items:center;">
+                            <input type="text" id="supaNickname" placeholder="Ваш ник" value="${currentUser || ''}" maxlength="20" style="width:150px; background:var(--bg-element); border:1px solid var(--border); border-radius:4px; padding:8px 12px; color:var(--text-primary);" ${currentUser ? 'disabled' : ''}>
+                            <textarea id="supaMessage" placeholder="Введите сообщение..." rows="1" style="flex:1; background:var(--bg-element); border:1px solid var(--border); border-radius:4px; padding:8px 12px; color:var(--text-primary); resize:vertical; min-height:42px;"></textarea>
+                            <button type="submit" class="btn btn-primary">Отправить</button>
+                        </form>
+                    </div>
+                `;
 
-                const canvas = overlay.querySelector('#flappyCanvas');
-                const ctx = canvas.getContext('2d');
-                let bird = { x: 100, y: 300, vy: 0, gravity: 0.28, jump: -6.5, size: 15 };
-                let pipes = [];
-                let score = 0;
-                let gameOver = false;
-                let animationId;
+                const messagesContainer = document.getElementById('supaChatMessages');
+                const form = document.getElementById('supaChatForm');
+                const nicknameInput = document.getElementById('supaNickname');
+                const messageInput = document.getElementById('supaMessage');
 
-                function addPipe() {
-                    const gap = 120;
-                    const topHeight = Math.random() * (canvas.height - gap - 50) + 20;
-                    pipes.push({ x: canvas.width, top: topHeight, bottom: canvas.height - topHeight - gap, passed: false });
-                }
-
-                function update() {
-                    if (gameOver) return;
-                    bird.vy += bird.gravity;
-                    bird.y += bird.vy;
-                    if (bird.y > canvas.height - bird.size) { bird.y = canvas.height - bird.size; bird.vy = 0; }
-                    if (bird.y < bird.size) { bird.y = bird.size; bird.vy = 0; }
-
-                    if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) addPipe();
-                    pipes.forEach(p => p.x -= 2);
-                    pipes = pipes.filter(p => p.x + 40 > 0);
-                    pipes.forEach(p => {
-                        if (!p.passed && p.x + 40 < bird.x) {
-                            p.passed = true;
-                            score++;
-                            const user = users.find(u => u.username === currentUser);
-                            user.currency = (user.currency || 0) + 1;
-                            saveUsers(users);
-                            updateUserUI();
-                        }
-                        if (bird.x + bird.size > p.x && bird.x - bird.size < p.x + 40) {
-                            if (bird.y - bird.size < p.top || bird.y + bird.size > p.top + (canvas.height - p.top - p.bottom)) {
-                                gameOver = true;
-                            }
-                        }
-                    });
-                }
-
-                function draw() {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#FFD700';
-                    ctx.beginPath();
-                    ctx.arc(bird.x, bird.y, bird.size, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#228B22';
-                    pipes.forEach(p => {
-                        ctx.fillRect(p.x, 0, 40, p.top);
-                        ctx.fillRect(p.x, canvas.height - p.bottom, 40, p.bottom);
-                    });
-                    ctx.fillStyle = '#000';
-                    ctx.font = '20px Arial';
-                    ctx.fillText('Счёт: ' + score, 10, 30);
-                    if (gameOver) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = '#fff';
-                        ctx.font = '30px Arial';
-                        ctx.fillText('Игра окончена', 50, 200);
+                // Загрузка последних сообщений
+                async function loadMessages() {
+                    const { data, error } = await supabase
+                        .from('messages')
+                        .select('*')
+                        .order('created_at', { ascending: true })
+                        .limit(100);
+                    if (error) {
+                        console.error('Ошибка загрузки сообщений:', error);
+                        messagesContainer.innerHTML = '<p style="color:#dc3545;">Ошибка загрузки сообщений. Проверьте настройки Supabase.</p>';
+                        return;
                     }
+                    messagesContainer.innerHTML = '';
+                    data.forEach(msg => {
+                        appendMessage(msg.author, msg.text, new Date(msg.created_at));
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
 
-                function loop() {
-                    update();
-                    draw();
-                    if (!gameOver) animationId = requestAnimationFrame(loop);
+                function appendMessage(author, text, date) {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'chat-message';
+                    const time = date ? date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                    msgDiv.innerHTML = `<span class="time" style="color:var(--text-muted);">[${time}]</span> <span class="author" style="font-weight:600;color:var(--accent);">${author}:</span> <span class="text">${text}</span>`;
+                    messagesContainer.appendChild(msgDiv);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
-                loop();
 
-                window.addEventListener('keydown', function handler(e) {
-                    if (e.code === 'Space') {
+                // Подписка на новые сообщения
+                const subscription = supabase
+                    .channel('public:messages')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+                        const newMsg = payload.new;
+                        appendMessage(newMsg.author, newMsg.text, new Date(newMsg.created_at));
+                    })
+                    .subscribe();
+
+                await loadMessages();
+
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const nick = currentUser || nicknameInput.value.trim();
+                    const text = messageInput.value.trim();
+                    if (!nick || !text) {
+                        alert('Введите ник и сообщение');
+                        return;
+                    }
+                    const { error } = await supabase
+                        .from('messages')
+                        .insert([{ author: nick, text: text, created_at: new Date().toISOString() }]);
+                    if (error) {
+                        alert('Ошибка отправки: ' + error.message);
+                    } else {
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                    }
+                });
+
+                messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        if (!gameOver) bird.vy = bird.jump;
-                        else {
-                            bird.y = 300; bird.vy = 0; pipes = []; score = 0; gameOver = false;
-                            loop();
-                        }
+                        form.dispatchEvent(new Event('submit'));
                     }
                 });
-                canvas.addEventListener('click', () => {
-                    if (!gameOver) bird.vy = bird.jump;
-                    else {
-                        bird.y = 300; bird.vy = 0; pipes = []; score = 0; gameOver = false;
-                        loop();
-                    }
+
+                messageInput.addEventListener('input', () => {
+                    messageInput.style.height = 'auto';
+                    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+                });
+
+                // Очистка подписки при уходе (не критично, но можно)
+                window.addEventListener('beforeunload', () => {
+                    supabase.removeChannel(subscription);
                 });
             }
-
-            let afkTimer = null;
-            function toggleAFK() {
-                if (!currentUser) { alert('Войдите в аккаунт'); return; }
-                const user = users.find(u => u.username === currentUser);
-                if (afkTimer) {
-                    clearInterval(afkTimer);
-                    afkTimer = null;
-                    document.getElementById('afkBtn').textContent = '⏳';
-                    return;
-                }
-                document.getElementById('afkBtn').textContent = '⏳ Активен';
-                afkTimer = setInterval(() => {
-                    user.currency = (user.currency || 0) + 6;
-                    saveUsers(users);
-                    updateUserUI();
-                }, 60000);
-            }
-
-            function showAd(duration, reward) {
-                if (!currentUser) { alert('Войдите в аккаунт'); return; }
-                const overlay = document.createElement('div');
-                overlay.className = 'modal-overlay';
-                overlay.style.display = 'flex';
-                overlay.innerHTML = `
-                    <div class="modal" style="max-width: 500px;">
-                        <h3>Реклама</h3>
-                        <div id="adContent">
-                            <p>Смотрите рекламу о преимуществах Premium!</p>
-                            <p>Premium даёт неоновый ник, эксклюзивные рамки, увеличенный лимит файлов и многое другое.</p>
-                            <p>Купите Premium в магазине за 1000 форумов (1 день) или 3000 (3 дня).</p>
-                            <p>Осталось: <span id="adTimer">${duration}</span> сек</p>
-                        </div>
-                        <div class="modal-actions">
-                            <button class="btn btn-outline" id="cancelAd">Отмена</button>
-                        </div>
-                    </div>`;
-                document.body.appendChild(overlay);
-                overlay.querySelector('#cancelAd').addEventListener('click', () => overlay.remove());
-                let secondsLeft = duration;
-                const timerInterval = setInterval(() => {
-                    secondsLeft--;
-                    const timerEl = overlay.querySelector('#adTimer');
-                    if (timerEl) timerEl.textContent = secondsLeft;
-                    if (secondsLeft <= 0) {
-                        clearInterval(timerInterval);
-                        const user = users.find(u => u.username === currentUser);
-                        user.currency = (user.currency || 0) + reward;
-                        saveUsers(users);
-                        updateUserUI();
-                        overlay.remove();
-                        alert(`Вы получили ${reward} форумов!`);
-                    }
-                }, 1000);
-            }
-
-            document.getElementById('flappyBtn').addEventListener('click', startFlappy);
-            document.getElementById('afkBtn').addEventListener('click', toggleAFK);
-            document.getElementById('adBtn').addEventListener('click', () => {
-                const overlay = document.createElement('div');
-                overlay.className = 'modal-overlay';
-                overlay.style.display = 'flex';
-                overlay.innerHTML = `
-                    <div class="modal" style="max-width: 400px;">
-                        <h3>Выберите рекламу</h3>
-                        <button class="btn btn-primary" id="shortAd">Короткая (15 сек) — 2 форума</button>
-                        <button class="btn btn-primary" id="longAd">Длинная (150 сек) — 35 форумов</button>
-                        <button class="btn btn-outline" id="closeAdMenu">Закрыть</button>
-                    </div>`;
-                document.body.appendChild(overlay);
-                overlay.querySelector('#closeAdMenu').addEventListener('click', () => overlay.remove());
-                overlay.querySelector('#shortAd').addEventListener('click', () => { overlay.remove(); showAd(15, 2); });
-                overlay.querySelector('#longAd').addEventListener('click', () => { overlay.remove(); showAd(150, 35); });
-            });
 
             function roleLabel(role){ const map={head_admin:'гл.администратор',admin:'Администратор',premium:'premium',beta:'Бета-тестер',user:'Игрок'}; return map[role]||role; }
             function getFilteredTopics(searchQuery=''){ let result=[...topics]; if(searchQuery.trim()){ const q=searchQuery.toLowerCase().trim(); result=result.filter(t=>t.title.toLowerCase().includes(q)||t.author.toLowerCase().includes(q)||t.messages.some(m=>m.text.toLowerCase().includes(q))); } result.sort((a,b)=>b.id-a.id); return result; }
